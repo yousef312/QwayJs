@@ -1,0 +1,21 @@
+# ChangeLog
+
+## [3.0.1] - 2025/07/13
+
+### Added
+
+- new Event System with custom events passed to handlers
+- new `.isKeyPressed` function to check whether a key is pressed or not
+- new `.reserved` better function to check whether a shortcut is already in use or not
+- new `.find` function that find and return a shortcut with it's callback
+- new `.attached` function to check whether a callback already attached to a shortcut ot not
+
+### Changed
+
+- the entire library now uses ES6 class definition instead of function based classes
+- combo strings devided by spaces no more ",", `C O M B O` old way `C,O,M,B,O`
+- the instantiation of the Qway libraries happens by default and a ready to use object is sent directly.
+
+### Fixed
+
+- error in the accuracy of the shortcut, `ctrl+shift+i` for example will keep executing once performed the first time.

@@ -1,980 +1,783 @@
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
-  typeof define === 'function' && define.amd ? define(factory) :
-  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.qway = factory());
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+    typeof define === 'function' && define.amd ? define(factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.qway = factory());
 })(this, (function () { 'use strict';
 
-  /**
-   * Qway.js 3.0.0
-   *
-   * Copyright 2018, yousef neji
-   * Licensed under the MIT license.
-   */
-  /**
-   * @tutorial introduction
-   * there is so many types of shortcut we offer:
-   *  - `shortcut` : ordinary known one
-   *  - `combo` : used mostly in games like cheat code a string you must tap very quickly and once
-   * you fully tap a function that going to execute at the end resulting in a completed mission
-   * or something like that
-   *  - `holdAction` : occurs when you hold a key for a duration resulting in a function that execute
-   * at the end.
-   *
-   * the syntax to bind each type deffers like so:
-   *  to bind a normal shortcut you must pass a string constraint a keys list seperated by a `+` sign
-   *  to bind a combo you must pass a string of keys list seperated by `,` comma
-   *  to bind a holdAction you pass a string in this form ` (key) => (duration) `. the spaces added only for clarity also the parenthese
-   *  the syntax of a hold action constrained out of a key then `=>` then the duration of holding in milliseconds.
-   *
-   *
-   * Should not that not all shortcut will be allowed some shortcut could be used by default in the used browser
-   * all thought the system will try to block this default one but some of them may still work like ctrl+t which open
-   * new tab and other ones.
-   *
-   *
-   * Tricks:
-   * here is a simple trick, what to do if I just want to stop a default keybinding like (ctrl+r) that does
-   * the window reload, you can simply assing to this shortcut a enmpty callback like that `qway.bind('ctrl+r')` you don't really
-   * have to pass a callback as a qway empty optimal generated callback will be there for you.
-   */
-
-  // fixed bug in version 2.0.0
-  // the library stop all my other callbacks to ceratin event such as mousedown event
-  // mouse up event
-  // and window blur event
-
-  // for major support those steps must be implimented
-  if ([].findIndex === undefined) {
-    Array.prototype["findIndex"] = function (callback) {
-      var res = -1;
-      for (let i = 0; i < this.length; i++) {
-        const element = this[i];
-        out = callback(element, i, this);
-        if (out === true) {
-          res = i;
-          break;
-        }
-      }
-
-      return res;
+    const noop = () => { };
+    const keyMap = {
+        // Alphanumeric
+        "a": ["KeyA", "KeyA", "a"],
+        "b": ["KeyB", "KeyB", "b"],
+        "c": ["KeyC", "KeyC", "c"],
+        "d": ["KeyD", "KeyD", "d"],
+        "e": ["KeyE", "KeyE", "e"],
+        "f": ["KeyF", "KeyF", "f"],
+        "g": ["KeyG", "KeyG", "g"],
+        "h": ["KeyH", "KeyH", "h"],
+        "i": ["KeyI", "KeyI", "i"],
+        "j": ["KeyJ", "KeyJ", "j"],
+        "k": ["KeyK", "KeyK", "k"],
+        "l": ["KeyL", "KeyL", "l"],
+        "m": ["KeyM", "KeyM", "m"],
+        "n": ["KeyN", "KeyN", "n"],
+        "o": ["KeyO", "KeyO", "o"],
+        "p": ["KeyP", "KeyP", "p"],
+        "q": ["KeyQ", "KeyQ", "q"],
+        "r": ["KeyR", "KeyR", "r"],
+        "s": ["KeyS", "KeyS", "s"],
+        "t": ["KeyT", "KeyT", "t"],
+        "u": ["KeyU", "KeyU", "u"],
+        "v": ["KeyV", "KeyV", "v"],
+        "w": ["KeyW", "KeyW", "w"],
+        "x": ["KeyX", "KeyX", "x"],
+        "y": ["KeyY", "KeyY", "y"],
+        "z": ["KeyZ", "KeyZ", "z"],
+        "0": ["Digit0", "Digit0", "0"],
+        "1": ["Digit1", "Digit1", "1"],
+        "2": ["Digit2", "Digit2", "2"],
+        "3": ["Digit3", "Digit3", "3"],
+        "4": ["Digit4", "Digit4", "4"],
+        "5": ["Digit5", "Digit5", "5"],
+        "6": ["Digit6", "Digit6", "6"],
+        "7": ["Digit7", "Digit7", "7"],
+        "8": ["Digit8", "Digit8", "8"],
+        "9": ["Digit9", "Digit9", "9"],
+        // Symbols
+        "-": ["Minus", "Minus", "-"],
+        "=": ["Equal", "Equal", "="],
+        "[": ["BracketLeft", "BracketLeft", "["],
+        "]": ["BracketRight", "BracketRight", "]"],
+        "\\": ["Backslash", "Backslash", "\\"],
+        ";": ["Semicolon", "Semicolon", ";"],
+        "'": ["Quote", "Quote", "'"],
+        "`": ["Backquote", "Backquote", "`"],
+        ",": ["Comma", "Comma", ","],
+        ".": ["Period", "Period", "."],
+        "/": ["Slash", "Slash", "/"],
+        // Whitespace & editing
+        "space": ["Space", "Space", "space"],
+        "enter": ["Enter", "Enter", "enter"],
+        "backspace": ["Backspace", "Backspace", "backspace"],
+        "tab": ["Tab", "Tab", "tab"],
+        "capslock": ["CapsLock", "CapsLock", "capslock"],
+        "escape": ["Escape", "Escape", "escape"],
+        "insert": ["Insert", "Insert", "insert"],
+        "delete": ["Delete", "Delete", "delete"],
+        "home": ["Home", "Home", "home"],
+        "end": ["End", "End", "end"],
+        "pageup": ["PageUp", "PageUp", "pageup"],
+        "pagedown": ["PageDown", "PageDown", "pagedown"],
+        "contextmenu": ["ContextMenu", "ContextMenu", "contextmenu"],
+        // Arrows
+        "arrowup": ["ArrowUp", "ArrowUp", "arrowup"],
+        "arrowdown": ["ArrowDown", "ArrowDown", "arrowdown"],
+        "arrowleft": ["ArrowLeft", "ArrowLeft", "arrowleft"],
+        "arrowright": ["ArrowRight", "ArrowRight", "arrowright"],
+        // Modifiers
+        "shift": ["Shift", ["ShiftLeft", "ShiftRight"], "shift"],
+        "control": ["Control", ["ControlLeft", "ControlRight", "MetaLeft", "MetaRight"], "ctrl"],
+        "ctrl": ["Control", ["ControlLeft", "ControlRight", "MetaLeft", "MetaRight"], "ctrl"],
+        "command": ["Control", ["ControlLeft", "ControlRight", "MetaLeft", "MetaRight"], "command"],
+        "alt": ["Alt", ["AltLeft", "AltRight"], "alt"],
+        "meta": ["Meta", ["MetaLeft", "MetaRight"], "meta"],
+        // Function keys
+        "f1": ["F1", "F1", "f1"],
+        "f2": ["F2", "F2", "f2"],
+        "f3": ["F3", "F3", "f3"],
+        "f4": ["F4", "F4", "f4"],
+        "f5": ["F5", "F5", "f5"],
+        "f6": ["F6", "F6", "f6"],
+        "f7": ["F7", "F7", "f7"],
+        "f8": ["F8", "F8", "f8"],
+        "f9": ["F9", "F9", "f9"],
+        "f10": ["F10", "F10", "f10"],
+        "f11": ["F11", "F11", "f11"],
+        "f12": ["F12", "F12", "f12"],
+        // Numpad
+        "numlock": ["NumLock", "NumLock", "numlock"],
+        "numpad0": ["Numpad0", "Numpad0", "numpad0"],
+        "numpad1": ["Numpad1", "Numpad1", "numpad1"],
+        "numpad2": ["Numpad2", "Numpad2", "numpad2"],
+        "numpad3": ["Numpad3", "Numpad3", "numpad3"],
+        "numpad4": ["Numpad4", "Numpad4", "numpad4"],
+        "numpad5": ["Numpad5", "Numpad5", "numpad5"],
+        "numpad6": ["Numpad6", "Numpad6", "numpad6"],
+        "numpad7": ["Numpad7", "Numpad7", "numpad7"],
+        "numpad8": ["Numpad8", "Numpad8", "numpad8"],
+        "numpad9": ["Numpad9", "Numpad9", "numpad9"],
+        "numpaddecimal": ["NumpadDecimal", "NumpadDecimal", "numpaddecimal"],
+        "numpaddivide": ["NumpadDivide", "NumpadDivide", "numpaddivide"],
+        "numpadmultiply": ["NumpadMultiply", "NumpadMultiply", "numpadmultiply"],
+        "numpadsubtract": ["NumpadSubtract", "NumpadSubtract", "numpadsubtract"],
+        "numpadadd": ["NumpadAdd", "NumpadAdd", "numpadadd"],
+        "numpadenter": ["NumpadEnter", "NumpadEnter", "numpadenter"],
+        // Media / browser
+        "printscreen": ["PrintScreen", "PrintScreen", "printscreen"],
+        "scrolllock": ["ScrollLock", "ScrollLock", "scrolllock"],
+        "pause": ["Pause", "Pause", "pause"],
+        "browserback": ["BrowserBack", "BrowserBack", "browserback"],
+        "browserforward": ["BrowserForward", "BrowserForward", "browserforward"],
+        "browserrefresh": ["BrowserRefresh", "BrowserRefresh", "browserrefresh"],
+        "browserstop": ["BrowserStop", "BrowserStop", "browserstop"],
+        "browsersearch": ["BrowserSearch", "BrowserSearch", "browsersearch"],
+        "browserfavorites": ["BrowserFavorites", "BrowserFavorites", "browserfavorites"],
+        "browserhome": ["BrowserHome", "BrowserHome", "browserhome"],
+        "volumemute": ["VolumeMute", "VolumeMute", "volumemute"],
+        "volumedown": ["VolumeDown", "VolumeDown", "volumedown"],
+        "volumeup": ["VolumeUp", "VolumeUp", "volumeup"],
+        "mediatracknext": ["MediaTrackNext", "MediaTrackNext", "mediatracknext"],
+        "mediatrackprevious": ["MediaTrackPrevious", "MediaTrackPrevious", "mediatrackprevious"],
+        "mediaplaypause": ["MediaPlayPause", "MediaPlayPause", "mediaplaypause"],
+        "launchmail": ["LaunchMail", "LaunchMail", "launchmail"],
+        "launchapp1": ["LaunchApp1", "LaunchApp1", "launchapp1"],
+        "launchapp2": ["LaunchApp2", "LaunchApp2", "launchapp2"],
+        "eject": ["Eject", "Eject", "eject"],
+        // International / misc
+        "intlbackslash": ["IntlBackslash", "IntlBackslash", "intlbackslash"],
+        "intlro": ["IntlRo", "IntlRo", "intlro"],
+        "intlyen": ["IntlYen", "IntlYen", "intlyen"],
+        "intlhash": ["IntlHash", "IntlHash", "intlhash"],
+        "conversion": ["Conversion", "Conversion", "conversion"],
+        "nonconversion": ["NonConversion", "NonConversion", "nonconversion"],
+        "again": ["Again", "Again", "again"],
+        "copy": ["Copy", "Copy", "copy"],
+        "cut": ["Cut", "Cut", "cut"],
+        "paste": ["Paste", "Paste", "paste"],
+        "find": ["Find", "Find", "find"],
+        "props": ["Props", "Props", "props"],
+        "select": ["Select", "Select", "select"],
+        "undo": ["Undo", "Undo", "undo"],
+        "redo": ["Redo", "Redo", "redo"],
+        "help": ["Help", "Help", "help"],
+        "stop": ["Stop", "Stop", "stop"],
+        "sleep": ["Sleep", "Sleep", "sleep"],
+        "wakeup": ["WakeUp", "WakeUp", "wakeup"],
+        "hiragana": ["Hiragana", "Hiragana", "hiragana"],
+        "katakana": ["Katakana", "Katakana", "katakana"],
+        "accept": ["Accept", "Accept", "accept"],
+        "modechange": ["ModeChange", "ModeChange", "modechange"]
     };
-  }
 
-  /**
-   * Interface allows to handle setting up shortcut and combo keys for you app game or even
-   * website very easily.
-   * @author Yousef Neji
-   * @param {boolean} duplicates default false, whether more then one callback for the same
-   * shortcut allowed or not!
-   */
-  function Qway(duplicates = false) {
-    var _this = this;
 
-    /**
-     * Holds the defined shortcuts list, to add new shortcut use `bind`.
-     * @type {Array}
-     */
-    this.shortcutslist = [];
+    navigator.userAgentData?.platform === 'macOS' ||
+        navigator.platform?.toUpperCase().includes('MAC');
+    const translateKey = (key) => keyMap.hasOwnProperty(key) ? keyMap[key][1] : null;
+    const translateCombo = (key) => /^[a-z0-9]$/i.test(key) || ["arrowleft", "arrowright", "arrowup", "arrowdown", "*"].includes(key) ? (key).toLowerCase() : null;
+    const mergeUnique = (arr) => [...new Set(arr)];
 
-    /**
-     * Holds the defined combo list, to new combo use `bind`.
-     * @type {Array}
-     */
-    this.combo = [];
+    class BindingEvent extends CustomEvent {
 
-    /**
-     * Holds the callback to be executing when pressing certain key for a given duration
-     * @type {Array}
-     */
-    this.holdingActions = [];
-
-    /**
-     * Flag determine whether assinging more then one callback to the same shortcut
-     * is allowed or not
-     * @type {boolean}
-     */
-    this.duplicates = duplicates;
-
-    /**
-     * Holds the different allowed keys to form the sortcut
-     * @type {Array}
-     */
-    this.KEYS = [
-      "command" /*For Mac OS*/,
-      "ctrl",
-      "shift",
-      "alt",
-      "altGraph",
-      "capslock",
-      "tab",
-      "backspace",
-      "enter",
-      "meta",
-      "space",
-      "escape",
-      "pageup",
-      "pagedown",
-      "home",
-      "insert",
-      "delete",
-      "end",
-      "arrowup",
-      "arrowdown",
-      "arrowleft",
-      "arrowright",
-      "1",
-      "2",
-      "3",
-      "4",
-      "5",
-      "6",
-      "7",
-      "8",
-      "9",
-      "0",
-      "a",
-      "b",
-      "c",
-      "d",
-      "e",
-      "f",
-      "g",
-      "h",
-      "i",
-      "j",
-      "k",
-      "l",
-      "m",
-      "n",
-      "o",
-      "p",
-      "q",
-      "r",
-      "s",
-      "t",
-      "u",
-      "v",
-      "w",
-      "x",
-      "y",
-      "z",
-      "*",
-      "f1",
-      "f2",
-      "f3",
-      "f4",
-      "f5",
-      "f6",
-      "f7",
-      "f8",
-      "f9",
-      "f10",
-      "f11",
-    ];
-
-    /**
-     * Get or set shortcut activation state
-     * @type {boolean}
-     */
-    this.shortcutActivated = true;
-
-    /**
-     * Get or set combo activation state
-     * @type {boolean}
-     */
-    this.comboActivated = true;
-
-    /**
-     * Flag determine whether the user currently in interactive mode or not,
-     * must not get changed!
-     * @readonly
-     * @type {boolean}
-     */
-    this.intercativeMode = false;
-
-    /**
-     * Used in the interactive mode to hold the shortcut that going to be builded
-     * @type {Array<Array>}
-     */
-    this.toBuild = [[], []];
-
-    /**
-     * QEF or Qway Escape Function is the rescue function when ever a shortcut was created without it callback.
-     * @readonly
-     * @type {function}
-     */
-    this.QEF = function () {};
-
-    /**
-     * Holds the keys states whether they are pressed or not.
-     * @readonly
-     */
-    this.keysuite = {};
-
-    // packing up
-    window.addEventListener("keydown", function (e) {
-      _this.handleKeydown.call(_this, e);
-    });
-    window.addEventListener("keyup", function (e) {
-      _this.handleKeyup.call(_this, e);
-    });
-    window.addEventListener("blur", function () {
-      _this.blur.call(_this);
-    });
-  }
-
-  Qway.prototype = {
-    /**
-     * Approve binding the user created shortcut in interactive mode.
-     * @method Qway#applyReplace
-     * @returns {string} the shortcut that currently was approved.
-     */
-    approve: function () {
-      if (this.toBuild[0].length === 0) return;
-
-      var shortcut = this.toBuild[0].join("+");
-      var callback = this.toBuild[1][1];
-
-      this.bind(shortcut, callback);
-
-      this.toBuild = [[], []];
-      return shortcut;
-    },
-    /**
-     * Approve replacing the given `callback` shortcut by the user defined one.
-     * @method Qway#approveToReplace
-     * @returns {boolean} true if replacing went well or false otherwise.
-     */
-    approveToReplace: function () {
-      if (this.toBuild[0].length === 0) return;
-
-      var shortcut = this.toBuild[0];
-      var callback = this.toBuild[1][1];
-
-      var obj = this.shortcutslist.find(
-        (a) => a.callback.toString() === callback.toString()
-      );
-      let exist = this.check(shortcut.join("+")) !== -1;
-
-      if (obj !== undefined && !exist) {
-        this.unbind(obj.shortcut.join("+"), obj.callback);
-        var res = this.bind(shortcut.join("+"), this.toBuild[1][1]);
-
-        this.toBuild = [[], []];
-        this.intercativeMode = false;
-        return res === false ? res : shortcut;
-      }
-      this.toBuild = [[], []];
-      this.intercativeMode = false;
-      return false;
-    },
-    /**
-     * Abort the interactive process emptying the system from the temporary saved
-     * user interaction data(shortcut), invoked internally by the system.
-     * @method Qway#abort
-     */
-    abort: function () {
-      this.intercativeMode = false;
-      this.toBuild = [[], []];
-    },
-    /**
-     * Reset the progress of the combo with the given string and callback.
-     * @method Qway#resetCombo
-     * @param {string} combo
-     * @param {function} callback (optional)
-     */
-    resetCombo: function (combo, callback) {
-      combo = this.supervise(combo).join(",");
-
-      var index = this.combo.findIndex(
-        (a) =>
-          a.combo.join(",") === combo &&
-          (callback === undefined ||
-            (callback !== undefined &&
-              a.callback.toString() === callback.toString()))
-      );
-
-      if (index !== -1) {
-        this.combo[index].progress = "";
-        this.combo[index].done = false;
-        return true;
-      }
-      return false;
-    },
-    /**
-     * Toggle the activation state of a combo with the given string and callback
-     * @method Qway#toggleCombo
-     * @param {string} combo
-     * @param {function} callback (optional)
-     * @param {boolean} state (optional) if you want to force true or false
-     * @returns {boolean} true if toggling went well or false otherwise
-     */
-    toggleCombo: function (combo, callback, state) {
-      combo = this.supervise(combo).join(",");
-
-      var index = this.combo.findIndex(
-        (a) =>
-          a.combo.join(",") === combo &&
-          (callback === undefined ||
-            (callback !== undefined &&
-              a.callback.toString() === callback.toString()))
-      );
-
-      if (index !== -1) {
-        if (typeof state === "boolean") {
-          this.combo[index].active = state;
-        } else {
-          this.combo[index].active = !this.combo[index].active;
-        }
-
-        return true;
-      }
-      return false;
-    },
-    /**
-     * Toggle the activation state of a shortcut with the given string and callback
-     * @method Qway#toggleCombo
-     * @param {string} combo
-     * @param {function} callback (optional)
-     * @param {boolean} state (optional) if you want to force true or false
-     * @returns {boolean} true if toggling went well or false otherwise
-     */
-    toggleShortcut: function (shortcut, callback, state) {
-      shortcut = this.supervise(shortcut).join("+");
-
-      var index = this.shortcutslist.findIndex(
-        (a) =>
-          a.shortcut.join("+") === shortcut &&
-          (callback === undefined ||
-            (callback !== undefined &&
-              callback.toString() === a.callback.toString()))
-      );
-
-      if (index !== -1) {
-        if (typeof state === "boolean") {
-          this.shortcutslist[index].active = state;
-        } else {
-          this.shortcutslist[index].active = !this.shortcutslist[index].active;
-        }
-
-        return true;
-      }
-      return false;
-    },
-    /**
-     * Replace the shortcut of the given callback to new one
-     * @method Qway#replace
-     * @param {function} callback
-     * @param {string} shortcut
-     * @returns {boolean}  true if shortcut replaced successfully or false otherwise
-     */
-    replace: function (callback, shortcut) {
-      var index = this.shortcutslist.find(
-        (a) =>
-          a.callback !== undefined &&
-          a.callback.toString() === callback.toString()
-      );
-
-      if (index !== undefined) {
-        this.unbind(index.shortcut.join("+"), index.callback);
-        return this.bind(shortcut, callback);
-      }
-      return false;
-    },
-    /**
-     * Interactivly getting the shortcut through the user clicks, this is usefull when
-     * designing the settings of your app, allowing the user to set up his own shortcut.
-     * @method Qway#getFromUser
-     * @param {number} shortcutLength the shortcut accepeted key count
-     * @param {function} callback
-     * @param {function} func1 this function will be excuted each time the user press or release
-     * a key while in creating the shortcut, it helps keep supervising the events!
-     */
-    getFromUser: function (shortcutLength, callback, func1) {
-      this.intercativeMode = true;
-      this.toBuild[1].push(shortcutLength, callback, func1);
-    },
-    /**
-     * Stop the interactive mode, getting the shortcut from the user
-     * @method Qway#stopGettingFromUser
-     */
-    stopGettingFromUser: function () {
-      this.intercativeMode = false;
-      this.toBuild = [[], []];
-    },
-    /**
-     * Invoked internally to cancel a shortcut
-     * @method Qway#handleKeyup
-     * @param {KeyboardEvent} e
-     */
-    handleKeyup: function (e) {
-      var key = e.key.toLowerCase();
-      key = key === " " ? "space" : key.trim();
-      key = key === "control" ? "ctrl" : key;
-      this.keysuite[key] = false;
-
-      if (this.intercativeMode === false) {
-        if (this.shortcutslist.length !== 0) {
-          if (this.shortcutActivated === false) return;
-
-          this.shortcutslist.forEach((item) => {
-            if (item.shortcut.indexOf(key) !== -1) {
-              var start = item.shortcut.indexOf(key);
-
-              for (let i = start; i < item.shortcut.length; i++) {
-                item.progress[i] = false;
-              }
-            }
-          });
-
-          if (this.holdingActions.length !== 0) {
-            this.holdingActions.forEach((item) => {
-              if (item.key === key && item.timeout !== null) {
-                clearTimeout(item.timeout);
-                item.timeout = null;
-              }
+        constructor(type, payload = {}) {
+            if (!["progress", "finish"].includes(type)) throw new Error(`[QwayJS] Unknown event type "${type}"`);
+            super(type, {
+                detail: payload.detail || null,
+                bubbles: payload.bubbles ?? false,
+                cancelable: payload.cancelable ?? false,
+                composed: payload.composed ?? false
             });
-          }
+
+            this.binding = payload?.binding ?? null;
+            this.qway = payload?.qway ?? null;
         }
+    }
 
-        if (this.combo.length !== 0 && this.comboActivated === true) {
-          // this is a figure for the content of the combo arrau to help visualize
-          // what happenings
-          //var obj = {
-          //    progress : '',
-          //    combo : combo,
-          //    callback : callback,
-          //    timing : timing,
-          //    timeout : null,
-          //    active : true
-          //}
+    class QBuildEvent extends CustomEvent {
+        constructor(type, payload = {}) {
+            if (!["change", "finish", "abort", "approved"].includes(type)) throw new Error(`[QwayJS] Unknown event type "${type}"`);
+            super(type, {
+                detail: payload.detail || null,
+                bubbles: payload.bubbles ?? false,
+                cancelable: payload.cancelable ?? false,
+                composed: payload.composed ?? false
+            });
 
-          this.combo.forEach((item, j) => {
-            if (
-              item.combo.indexOf(key) !== -1 &&
-              !item.done &&
-              item.active === true
-            ) {
-              e.preventDefault();
+            this.builder = payload?.builder ?? null;
+            this.qway = payload?.qway;
+            this.progress = [payload?.current, payload?.len];
 
-              // first we increase the progress by the new `key`
-              item.progress += key;
-
-              // we clear the old execution timeout
-              if (item.timeout !== null) {
-                clearTimeout(item.timeout);
-              }
-
-              if (item.progress === item.combo.join("")) {
-                // means we get the right string
-                item.done = true;
-              }
-
-              // now we execute the function
-              item.callback(item);
-
-              if (!item.done) {
-                item.timeout = setTimeout(function () {
-                  item.progress = "";
-                  item.callback(item);
-                }, item.timing);
-              }
-            }
-          });
         }
-      } else {
-        // the interactive mode
+    }
 
-        var index = this.toBuild[0].findIndex((a) => a === key);
-        if (index !== -1) {
-          e.preventDefault();
-          this.toBuild[0].splice(index, 1);
-          this.toBuild[1][2](this.toBuild[0]);
-        }
-      }
-    },
     /**
-     * Invoked internally by the library while performing the shortcut
-     * @method Qway#handleKeydown
-     * @param {KeyboardEvent} e
+     * Single binding/shortcut item with it's own functionalities
      */
-    handleKeydown: function (e) {
-      var key = e.key.toLowerCase();
-      key = key === " " ? "space" : key.trim();
-      key = key === "control" ? "ctrl" : key;
-      this.keysuite[key] = true;
+    class Binding {
 
-      if (this.intercativeMode === false) {
-        if (this.shortcutslist.length !== 0 && this.shortcutActivated === true) {
-          this.shortcutslist.forEach((item) => {
-            if (item.active === false) return;
+        /**
+         * @param {string} content 
+         * @param {function} callback 
+         * @param {{ delay: number, fragile: boolean }} options 
+         */
+        constructor(content, callback, options) {
+            this.content = content;
+            this.callback = callback;
+            this.options = options || {};
+            this.progress = new Set();
 
-            if (item.shortcut[0] === "*") {
-              e.preventDefault();
-              item.progress[0] = true;
-            } else if (
-              item.progress.indexOf(true) !== -1 &&
-              item.shortcut[item.progress.lastIndexOf(true) + 1] == "*"
-            ) {
-              e.preventDefault();
-              item.progress[item.progress.lastIndexOf(true) + 1] = true;
-            }
-
-            //otherwise
-            if (item.shortcut.indexOf(key) !== -1) {
-              e.preventDefault();
-              if (
-                item.progress[item.shortcut.indexOf(key) - 1] === true ||
-                item.progress[item.shortcut.indexOf(key) - 1] === undefined
-              ) {
-                item.progress[item.shortcut.indexOf(key)] = true;
-              }
-            }
-
-            if (item.progress[item.progress.length - 1] === true) {
-              e.preventDefault();
-              item.progress[item.progress.length - 1] = false;
-              item.callback();
-            }
-          });
+            this.events = {};
+            this.onprogress = noop;
+            this.onfinish = noop;
         }
 
-        if (this.holdingActions.length !== 0 && this.shortcutActivated === true) {
-          for (let i = 0; i < this.holdingActions.length; i++) {
-            const element = this.holdingActions[i];
-
-            if (key === element.key && element.timeout === null) {
-              e.preventDefault();
-              this.holdingActions[i].timeout = setTimeout(
-                element.callback,
-                element.duration
-              );
+        /**
+         * Trigger certain event action
+         * @param {"keyup" | "keydown"} name 
+         * @param {KeyboardEvent} ev 
+         */
+        onEvent(name, ev) {
+            switch (name) {
+                case "keyup":
+                    this.keyUp(ev);
+                    break;
+                case "keydown":
+                    if (this.keyDown(ev)) this.onfinish(this);
+                    else this.onprogress(this);
+                    break;
             }
-          }
         }
-      } else if (this.intercativeMode === true) {
-        // first we check if key is already in the shortcut or not
-        var alreadyThere = this.toBuild[0].findIndex((a) => a === key);
-        if (alreadyThere === -1) {
-          e.preventDefault();
-          // now we need to handle creating the shortcut through the user clicks
-          this.toBuild[0].push(key);
-          this.toBuild[1][2](this.toBuild[0]);
 
-          if (this.toBuild[0].length === this.toBuild[1][0]) {
-            // means if shortcut length is enough
-            // then stop enlarging it and record it
-            this.intercativeMode = false;
-            this.toBuild[1][2](this.toBuild[0], true);
-          }
+        /**
+         * Reset/empty current progress of the binding
+         */
+        reset() {
+
         }
-      }
-    },
+    }
+
     /**
-     * Bind new short cut with a callback, mainly use comma seperated list of keys to create a combo or
-     * seperated with `+` sign for ordinary shortcut.
-     * @method Qway#bind
-     * @param {string} shortcut the shortcut to bind
-     * @param {function} callback the callback to be excuted when shortcut performed, if none was passed then a default callback will be assigned
-     * @param {number} timing optional parameter defined the minimum time between key presses
-     * so the shortcut is performed!(only for combos)
+     * Shortcut bindings are a sequence of keys, once clicked at the same time with their
+     * order execute a callback bound to them.
      */
-    bind: function (shortcut = "ctrl+q", callback, timing = 500) {
-      //do the check
-      if (typeof shortcut !== "string") {
-        console.warn("Qway warn you:\nthe given shortcut not string!");
-        return;
-      }
-      callback = typeof callback !== "function" ? this.QEF : callback;
-      timing = typeof timing !== "number" ? 500 : timing;
+    class ShortcutBinding extends Binding {
 
-      //take apart the shortcut and anlyse it
-      if (this.KEYS.indexOf(shortcut) !== -1) {
-        // means the shortcut is constrained out of one single key
-        var obj = {
-          shortcut: [shortcut],
-          progress: [false],
-          callback: callback,
-          active: true,
-        };
-        var index = this.check(shortcut);
-        if (index === -1 || this.duplicates) {
-          this.shortcutslist.push(obj);
-          return true;
-        }
-        return false;
-      } else if (shortcut.indexOf("+") !== -1) {
-        var shortcuti = this.supervise(shortcut);
-        if (shortcut !== false) {
-          var obj = {
-            shortcut: shortcuti,
-            progress: new Array(shortcuti.length).fill(
-              false,
-              0,
-              shortcuti.length
-            ),
-            callback: callback,
-            active: true,
-          };
+        /**
+         * List of progresses
+         * @type {Array<Set>}
+         */
+        #progress = [];
 
-          var index = this.check(shortcuti.join("+"));
-          if (index === -1 || this.duplicates) {
-            this.shortcutslist.push(obj);
-            return true;
-          }
-          return false;
+        /**
+         * @param {Array<string>} content 
+         * @param {function} callback 
+         * @param {*} options 
+         */
+        constructor(content, callback, options) {
+            // make sure correct format
+            content = mergeUnique(Array.isArray(content) ? content : [content]);
+            let seqs = [];
+            content.forEach(short => {
+                const sequence = short.toLowerCase().split('+').map(translateKey);
+                if (sequence.includes(null)) throw new Error(`[QwayJS] Incorrect shortcut format "${short}"`);
+                seqs.push(sequence);
+            });
+            // Initiate father class
+            super(content, callback, options);
+            this.sequences = seqs;
+            this.#progress = new Array(seqs.length).fill(new Set());
         }
-        return false;
-      } else if (shortcut.indexOf(",") !== -1) {
-        var combo = this.supervise(shortcut);
 
-        if (combo !== false) {
-          var obj = {
-            progress: "",
-            combo: combo,
-            done: false,
-            callback: callback,
-            timing: timing,
-            timeout: null,
-            active: true,
-          };
-          var index = this.check(combo.join(","));
-          if (index === -1 || this.duplicates) {
-            this.combo.push(obj);
-            return true;
-          }
-          return false;
+        keyUp(e) {
+            const code = e.code;
+            this.#progress.forEach(prg => {
+                prg.delete(code);
+            });
         }
-        return false;
-      } else if (shortcut.indexOf("=>") !== -1) {
-        var shortcuti = this.supervise(shortcut);
 
-        if (shortcut !== false) {
-          var obj = {
-            key: shortcuti[0],
-            duration: shortcuti[1],
-            callback: callback,
-            timeout: null,
-          };
-          var index = this.check(shortcut);
-          if (index === -1 || this.duplicates) {
-            this.holdingActions.push(obj);
-            return true;
-          }
-          return false;
+        keyDown(e) {
+            const code = e.code,
+                _this = this;
+            e.preventDefault();
+            this.#progress.forEach((prg, j) => {
+                prg.add(code);
+
+                const pressed = Array.from(prg);
+                const isMatch = _this.sequences[j].every((code, i) => Array.isArray(code) ? code.includes(pressed[i]) : pressed[i] === code);
+                if (isMatch) {
+                    _this.callback();
+                    return true;
+                }
+
+            });
         }
-        return false;
-      } else {
-        return false;
-      }
-    },
+
+        reset() {
+            this.#progress.forEach(prg => prg.clear());
+        }
+    }
+
     /**
-     * Remove the shortcut associated to the given `callback`, do not pass any parameter to empty
-     * the whole system callback, shortcuts combo and also hold actions.
-     * more options :
-     *  - pass `,` as the shortcut and `all` as the callback(or undefined) to delete all the combo
-     *  - pass `+` as the shortcut and `all` as the callback(or undefined) to delete all the shortcuts
-     *  - pass `=>` as the shortcut and `all` as the callback(or undefined) to delete all the holding actions
-     *
-     * @method Qway#unbind
-     * @param {string} shortcut
-     * @param {function} callback
-     * @returns {boolean} true if shortcut successfully unbinded or false otherwise
+     * Combo bindings differ from normal shortcuts in the manner of execution, unlike shortcuts 
+     * `Combo` are about order and timing, you must click the combo string within certain period 
+     * identified by the `delay` between clicks or (sequence construction).
      */
-    unbind: function (shortcut, callback) {
-      if (shortcut === undefined) {
-        // passing undefined will empty the whole system
-        // all the defined shortcut holdingActions and combo
-        this.shortcutslist = [];
-        this.holdingActions = [];
-        this.combo = [];
-        return;
-      }
+    class ComboBinding extends Binding {
 
-      var findANDdeleted = false;
-      if (this.KEYS.indexOf(shortcut) !== -1) {
-        for (let i = this.shortcutslist.length - 1; i > -1; i--) {
-          const element = this.shortcutslist[i];
-
-          if (
-            ((callback !== undefined &&
-              element.callback.toString() === callback.toString()) ||
-              callback === undefined) &&
-            element.shortcut.join("") === shortcut
-          ) {
-            this.shortcutslist.splice(i, 1);
-            findANDdeleted = true;
-          }
+        /**
+         * @param {string} content 
+         * @param {function} callback 
+         * @param {*} options 
+         */
+        constructor(content, callback, options) {
+            options = options || { delay: 300 };
+            content = content.toLowerCase();
+            // make sure correct format
+            const sequence = content.split(' ').map(translateCombo);
+            if (sequence.includes(null)) throw new Error(`[QwayJS] Incorrect combo string format "${content}"`);
+            // Initiate father class
+            super(content, callback, options);
+            this.sequence = sequence;
+            this.timeout = null;
         }
-      } else if (shortcut.indexOf("+") !== -1) {
-        if (callback === "all" || (callback === undefined && shortcut === "+")) {
-          this.shortcutslist = [];
-          findANDdeleted = true;
-        } else {
-          shortcut = this.supervise(shortcut).join("+");
 
-          for (let i = this.shortcutslist.length - 1; i > -1; i--) {
-            const element = this.shortcutslist[i];
+        keyUp(e) {
+            // do nothing in here as combo are about time 
+        }
 
-            if (
-              element.shortcut.join("+") === shortcut &&
-              ((callback !== undefined &&
-                element.callback.toString() === callback.toString()) ||
-                callback === undefined)
-            ) {
-              this.shortcutslist.splice(i, 1);
-              findANDdeleted = true;
+        keyDown(e) {
+            let _this = this;
+            this.progress.add(e.key.toLowerCase());
+            if (this.timeout) clearTimeout(this.timeout);
+
+            const pressed = Array.from(this.progress);
+            const isMatch = this.sequence.every((code, i) => code === "*" || (Array.isArray(code) ? code.includes(pressed[i]) : pressed[i] === code));
+
+            // COMBO are time based shortcuts
+            this.timeout = setTimeout(function () {
+                _this.progress.clear();
+            }, this.options?.delay || 300);
+
+            if (isMatch) {
+                e.preventDefault();
+                this.callback();
+                return true;
             }
-          }
         }
-      } else if (shortcut.indexOf(",") !== -1) {
-        if (callback === "all" || (callback === undefined && shortcut === ",")) {
-          this.combo = [];
-          findANDdeleted = true;
-        } else {
-          shortcut = this.supervise(shortcut).join(",");
 
-          for (let i = this.combo.length - 1; i > -1; i--) {
-            const combo = this.combo[i];
-            if (
-              combo.combo.join(",") === shortcut &&
-              ((callback !== undefined &&
-                combo.callback.toString() === callback.toString()) ||
-                callback === undefined)
-            ) {
-              this.combo.splice(i, 1);
-              findANDdeleted = true;
-            }
-          }
+        reset() {
+            if (this.timeout) clearTimeout(this.timeout);
+            this.progress.clear();
         }
-      } else if (shortcut.indexOf("=>") !== -1) {
-        if (callback === "all" || (callback === undefined && shortcut === "=>")) {
-          this.holdingActions = [];
-          findANDdeleted = true;
-        } else {
-          shortcut = this.supervise(shortcut);
+    }
 
-          for (let i = this.holdingActions.length - 1; i > -1; i--) {
-            const action = this.holdingActions[i];
-
-            if (
-              action.key === shortcut[0] &&
-              action.duration === shortcut[1] &&
-              ((callback !== undefined &&
-                action.callback.toString() === callback.toString()) ||
-                callback === undefined)
-            ) {
-              this.holdingActions.splice(i, 1);
-              findANDdeleted = true;
-            }
-          }
-        }
-      }
-
-      return findANDdeleted;
-    },
     /**
-     * Check whether shortcut/keysmap/holdAction already under use or not!
-     * @method Qway#check
-     * @param {string} shortcut
-     * @returns {number}
+     * Timed keys are a single clicked key that executes it callback after
+     * a pre-defined period
      */
-    check: function (shortcut) {
-      if (shortcut.indexOf("+") !== -1) {
-        return this.shortcutslist.findIndex(
-          (a) => a !== undefined && a.shortcut.join("+") === shortcut
-        );
-      } else if (shortcut.indexOf(",") !== -1) {
-        return this.combo.findIndex(
-          (a) => a !== undefined && a.combo.join(",") === shortcut
-        );
-      } else if (shortcut.indexOf("=>") !== -1) {
-        return this.holdingActions.findIndex(
-          (a) => a !== undefined && a.key === shortcut
-        );
-      } else {
-        return this.shortcutslist.findIndex(
-          (a) => a !== undefined && a.shortcut[0] === shortcut
-        );
-      }
-    },
+    class TimedKey extends Binding {
+
+        /**
+         * @param {string} content 
+         * @param {function} callback 
+         * @param {*} options 
+         */
+        constructor(content, callback, options) {
+            content = content.toLowerCase();
+            // make sure correct format
+            const [rawKey, dur] = content.split('=>');
+            let key = translateKey(rawKey);
+            if (key === null) throw new Error(`[QwayJS] Incorrect timedkey "${content}"`);
+            // Initiate father class
+            super(content, callback, options);
+
+            this.key = key;
+            this.timeout = null;
+            this.dur = parseFloat(dur || "1000");
+        }
+
+        keyUp(e) {
+            // do nothing in here as combo are about time 
+            if (this.options?.fragile === true || this.key === e.code.toLowerCase()) {
+                clearTimeout(this.timeout);
+                this.timeout = null;
+            }
+        }
+
+        keyDown(e) {
+            let _this = this;
+
+            if (this.key === e.code.toLowerCase() && !this.timeout) {
+                e.preventDefault();
+
+                // COMBO are time based shortcuts
+                this.timeout = setTimeout(function () {
+                    _this.callback();
+                    _this.timeout = null;
+                }, this.dur);
+
+            } else if (this.options?.fragile === true) {
+                clearTimeout(this.timeout);
+                this.timeout = null;
+            }
+        }
+
+        reset() {
+            if (this.timeout) clearTimeout(this.timeout);
+        }
+    }
+
     /**
-     * Does check a shortcut whether is proper form and can be used or, a proper form shortcut
-     * contains only existing system keys, and only one type of seperator so it's type can be identified
-     * which could be:
-     *  - `shortcut` : if the keys seperator is `+` sign
-     *  - `combo` : if the keys seperator is `,`  comma
-     *  - `holdAction` : if the keys seperator is `=>` sign
-     *
-     * also the function does fix the shortcut in some parts!
-     * you don't usually invoke this function as it's used internally.
-     * @method Qway#supervise
-     * @param {string} shortcut
-     * @returns {Array} if shortcut fit the terms then it returned in an array otherwise
-     * false is returned!
+     * Qway interactive shortcut builder interface
      */
-    supervise: function (shortcut) {
-      if (
-        shortcut.indexOf(",") !== -1 &&
-        (shortcut.indexOf("+") !== -1 || shortcut.indexOf("=>") !== -1)
-      ) {
-        return false;
-      }
+    class QBuilder {
+        #progress = new Set();
 
-      if (
-        shortcut.indexOf("+") !== -1 &&
-        (shortcut.indexOf(",") !== -1 || shortcut.indexOf("=>") !== -1)
-      ) {
-        return false;
-      }
+        /**
+         * @param {QwayClass} q 
+         */
+        constructor(q) {
+            this.q = q;
 
-      if (
-        shortcut.indexOf("=>") !== -1 &&
-        (shortcut.indexOf("+") !== -1 || shortcut.indexOf(",") !== -1)
-      ) {
-        return false;
-      }
-
-      var error = false;
-
-      if (shortcut.indexOf("+") !== -1) {
-        shortcut = shortcut.split("+");
-        for (let i = 0; i < shortcut.length; i++) {
-          if (shortcut[i] === "control") {
-            shortcut[i] = "ctrl";
-          }
-
-          if (shortcut[i] === " ") {
-            shortcut[i] = "space";
-          }
-
-          shortcut[i] = shortcut[i].toLowerCase();
-
-          if (this.KEYS.indexOf(shortcut[i]) === -1) {
-            error = true;
-            break;
-          }
+            this.on = false;
+            this.cb = null;
+            this.len = 0;
         }
 
-        return error ? false : shortcut;
-      } else if (shortcut.indexOf(",") !== -1) {
-        shortcut = shortcut.split(",");
-        var res = [];
-        for (let i = 0; i < shortcut.length; i++) {
-          var key;
-
-          key = shortcut[i] === " " ? "space" : shortcut[i].trim().toLowerCase();
-          key = key === "control" ? "ctrl" : key;
-
-          if (key.indexOf("*") !== -1) {
-            key = key.split("*");
-            times = parseFloat(key[1]);
-            name = key[0].trim();
-
-            if (this.KEYS.indexOf(name) === -1) {
-              error = true;
-              break;
-            }
-
-            for (let j = 0; j < times; j++) {
-              res.push(name);
-            }
-          } else {
-            res.push(key);
-            if (this.KEYS.indexOf(key) === -1) {
-              error = true;
-              break;
-            }
-          }
+        /**
+         * Start the interactive creation mode
+         * @param {number} len 
+         * @param {function} cb 
+         */
+        start(len, cb) {
+            if (typeof len != "number" || len === 0 || typeof cb != 'function')
+                throw new Error(`[QwayJS] TypeError: len must be number received "${typeof len}", cb must be function recieved "${typeof cb}"`)
+            this.#progress.clear();
+            this.on = true;
+            this.cb = cb;
+            this.len = len;
         }
 
-        return error ? false : res;
-      } else if (shortcut.indexOf("=>") !== -1) {
-        shortcut = shortcut.split("=>");
-        var duration = parseFloat(shortcut[1]);
-        var key = shortcut[0];
-
-        key = key === " " ? "space" : key.trim().toLowerCase();
-        key = key === "control" ? "ctrl" : key;
-
-        if (this.KEYS.indexOf(key) === -1) {
-          return false;
+        /**
+         * Stop the interactive creation mode
+         */
+        end() {
+            this.#progress.clear();
+            this.on = false;
         }
 
-        return this.KEYS.indexOf(key) === -1 ? false : [key, duration];
-      } else {
-        shortcut = shortcut === " " ? "space" : shortcut.trim().toLowerCase();
-        shortcut = shortcut === "control" ? "ctrl" : shortcut;
+        /**
+         * Receive a keyclick from the user
+         * @param {string} evName 
+         * @param {KeyboardEvent} ev 
+         */
+        receive(evName, ev) {
+            if (evName == "keydown" && this.#progress.size >= this.len) return;
 
-        return this.KEYS.indexOf(shortcut) === -1
-          ? false
-          : {
-              shortcut: shortcut,
-              callback: null,
+            ev.preventDefault();
+
+            switch (evName) {
+                case "keydown":
+                    this.#progress.add(ev.code);
+                    break;
+                case "keyup":
+                    this.#progress.delete(ev.code);
+                    break;
+            }
+
+            this.q.trigger('builder-change', this, new QBuildEvent('change', { builder: this, current: this.#progress.size, len: this.len, qway: this.q }));
+            if (this.#progress.size == this.len)
+                this.q.trigger('builder-finish', this, new QBuildEvent('finish', { builder: this, current: this.#progress.size, len: this.len, qway: this.q }));
+        }
+
+        /**
+         * Approve the current shortcut
+         */
+        approve() {
+            this.q.bind(this.getString('+'), this.cb);
+            this.q.trigger('builder-approved', this, new QBuildEvent('approved', { builder: this, qway: this.q }));
+            this.end();
+        }
+
+        /**
+         * Abort the current shortcut
+         */
+        abort() {
+            if (this.on) {
+                this.q.trigger('builder-abort', this, new QBuildEvent('abort', { builder: this, qway: this.q }));
+                this.end();
+            }
+        }
+
+        /**
+         * Get shortcut string representation
+         * @param {string?} joinment optionally separate the shortcut
+         * @returns {string|Array}
+         */
+        getString(joinment) {
+            let final = [];
+            let fs = Object.values(keyMap);
+            Array.from(this.#progress).forEach(kcode => {
+                final.push(fs.find(a => Array.isArray(a[1]) ? a[1].includes(kcode) : a[1] === kcode)[2]);
+            });
+            return typeof joinment == "string" ? final.join(joinment) : final;
+        }
+    }
+
+    /**
+     * Shortcuts are essential time savers to speed-up your app workflow!
+     * 
+     * Our little library offers a plenty of shortcut types facilitating your access 
+     * to them with a crunchy ;) interface.
+     * 
+     */
+    class QwayClass {
+        /**
+         * List of bindings
+         * @type {Array<Binding>}
+         */
+        #bindings = [];
+
+        /**
+         * Key actions map 
+         * @type {Array<{ key: string, code: string, on: boolean}>}
+         */
+        #keys = {};
+
+        #events = {};
+        #activated = true;
+
+        constructor() {
+
+            this.builder = new QBuilder(this);
+
+            this.#bindEvents();
+        }
+
+        #bindEvents() {
+            let _this = this;
+            window.addEventListener('keydown', function (e) {
+                if (_this.builder.on)
+                    _this.builder.receive('keydown', e);
+                if (!_this.#activated) return;
+                _this.#bindings.forEach(bnd => {
+                    bnd.onEvent("keydown", e);
+                });
+                _this.#keys[e.code] = true;
+            });
+
+            window.addEventListener('keyup', function (e) {
+                if (_this.builder.on)
+                    _this.builder.receive('keyup', e);
+                if (!_this.#activated) return;
+                _this.#bindings.forEach(bnd => {
+                    bnd.onEvent("keyup", e);
+                });
+                _this.#keys[e.code] = false;
+            });
+
+            window.addEventListener('blur', function () {
+                _this.#bindings.forEach(bnd => {
+                    bnd.reset();
+                });
+                _this.declineFromUser();
+            });
+        }
+
+        /**
+        * Bind new shortcut 
+        * @param {string} shortcut 
+        * @param {function} callback 
+        */
+        bind(shortcut, callback) {
+            let _this = this;
+
+            if (this.reserved(shortcut)) return false;
+
+            let bnd;
+            if (shortcut.includes('+') || (Array.isArray(shortcut)))
+                bnd = new ShortcutBinding(shortcut, callback);
+            else if (shortcut.includes(' '))
+                bnd = new ComboBinding(shortcut, callback);
+            else if (shortcut.includes('=>'))
+                bnd = new TimedKey(shortcut, callback);
+
+            if (!bnd) throw new Error(`[QwayJS] Could bind the new shortcut!`);
+
+            bnd.onprogress = function (e) {
+                _this.trigger('progress', e, new BindingEvent('progress', { binding: e, qway: _this }));
             };
-      }
-    },
-    /**
-     * Returns an object that can be easily saved inside a JSON file, this helps saving
-     * the user preferences if you are creating an app!
-     *
-     * also the function `initiate` suppose to take as parameter the return of this function
-     * as to load back the state.
-     * @method Qway#pack
-     * @returns {object}
-     */
-    pack: function () {
-      return {
-        duplicates: this.duplicates,
-        shortcut: this.shortcutslist,
-        holdingActions: this.holdingActions,
-        shortcutActivated: this.shortcutActivated,
-        comboActivated: this.comboActivated,
-        combo: this.combo,
-      };
-    },
-    /**
-     * Load the shortcut list and the combo and all preferences from an object, usually this
-     * object is parsed from a JSON file, as to save and load back the state.
-     * @method Qway#initiate
-     * @param {object} obj
-     */
-    initiate: function (obj) {
-      this.duplicates = obj.duplicates || false;
-      this.shortcutslist = obj.shortcut || [];
-      this.combo = obj.combo || [];
-      this.holdingActions = obj.holdingActions || [];
-      this.comboActivated = obj.comboActivated || true;
-      this.shortcutActivated = obj.shortcutActivated || true;
-    },
-    /**
-     * Used to handle window blur event, invoked internally by the system
-     * @method Qway#blur
-     */
-    blur: function () {
-      for (let i = 0; i < this.shortcutslist.length; i++) {
-        this.shortcutslist[i].progress.fill(
-          false,
-          0,
-          this.shortcutslist[i].progress.length
-        );
-      }
-      for (let i = 0; i < this.combo.length; i++) {
-        this.combo[i].progress = "";
-      }
-      for (let i = 0; i < this.holdingActions.length; i++) {
-        if (this.holdingActions[i].timeout !== null) {
-          clearTimeout(this.holdingActions[i].timeout);
-          this.holdingActions[i].timeout = null;
+
+            bnd.onfinish = function (e) {
+                _this.trigger('finish', e, new BindingEvent('finish', { binding: e, qway: _this }));
+            };
+            this.#bindings.push(bnd);
+            return true;
         }
-      }
 
-      this.intercativeMode = false;
-      this.toBuild = [[], []];
-    },
-  };
+        /**
+         * Remove a shortcut
+         * @param {string} shortcut 
+         * @param {function} callback 
+         * @returns {boolean}
+         */
+        unbind(shortcut, callback) {
+            let i = this.#bindings.findIndex(a => a.content == shortcut && a.callback === callback);
+            if (i != -1) {
+                this.#bindings.splice(i, 1);
+                return true;
+            }
+            return false;
+        }
 
-  return Qway;
+        /**
+         * Replace the callback's shortcut
+         * @param {function} callback 
+         * @param {string} shortcut 
+         */
+        replace(callback, shortcut) {
+            let bnd = this.#bindings.find(a => a.callback === callback);
+            if (bnd) {
+                this.unbind(bnd.content, bnd.callback);
+                this.bind(shortcut, callback);
+            }
+        }
+
+        /**
+         * Attach an event listener
+         * @param {"progress" | "finish" | "builder-change" | "builder-abort" | "builder-approved"} ev 
+         * @param {function} cb
+         * @returns {QwayClass} 
+         */
+        on(ev, cb) {
+            if (typeof cb !== "function") throw new Error(`[QwayJS] .on accepts a function as callback a "${typeof cb}" is passed!`);
+            if (!this.#events[ev]) this.#events[ev] = [];
+            this.#events[ev].push(cb);
+            return this;
+        }
+
+        /**
+         * Remove an attached event listener
+         * @param {"progress" | "finish"} ev 
+         * @param {function} cb 
+         * @returns {boolean} 
+         */
+        off(ev, cb) {
+            if (typeof cb !== "function") throw new Error(`[QwayJS] .on accepts a function as callback a "${typeof cb}" is passed!`);
+            if (!this.#events[ev]) return;
+
+            let i = this.#events[ev].findIndex(a => a === cb);
+            if (i != -1) {
+                this.#events.splice(i, 1);
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * Trigger an event
+         * @param {"progress" | "finish"} ev 
+         * @param {*} ctx 
+         * @param  {...any} args 
+         */
+        trigger(ev, ctx, ...args) {
+            if (this.#events[ev])
+                this.#events[ev].forEach(cb => cb.call(ctx, ...args));
+        }
+
+        /**
+         * Check whether a key is currently pressed or not
+         * @param {string} key 
+         * @returns {boolean}
+         */
+        isKeyPressed(key) {
+            key = key === " " ? "space" : key.toLowerCase();
+            if (keyMap[key]) {
+                return this.#keys[keyMap[key][1]] || false;
+            }
+        }
+
+        /**
+         * Interactively creates a new shortcut entered by the user, the callback already
+         * do have a shortcut, it will be replaced by the new one unless you 
+         * @param {number} len the length of the shortcut 
+         * @param {function} cb the callback to be attached
+         */
+        getFromUser(len, cb) {
+            this.#activated = false;
+            this.builder.start(len, cb);
+
+            return this;
+        }
+
+        /**
+         * Approve user created shortcut from interactive mode
+         * @param {boolean} replaceInCase
+         */
+        approveFromUser(replaceInCase) {
+            if (replaceInCase === true) {
+                let fn = this.attached(this.builder.cb);
+                if (fn) {
+                    this.unbind(this.#bindings[fn].content, this.#bindings[fn].callback);
+                }
+            }
+            this.builder.approve();
+            this.#activated = true;
+        }
+
+        /**
+         * Decline user created shortcut from interactive mode
+         */
+        declineFromUser() {
+            this.builder.abort();
+            this.#activated = true;
+        }
+
+        /**
+         * Activate the Qwaay shortcuts
+         */
+        activate() {
+            this.#activated = true;
+        }
+
+        /**
+         * Disactivate the Qwaay shortcuts
+         */
+        disactivate() {
+            this.#activated = false;
+            this.#bindings.forEach(bnd => bnd.reset());
+        }
+
+        /**
+         * Check whether a shortcut is reserved or not
+         * @param {string} shortcut 
+         * @returns {boolean}
+         */
+        reserved(shortcut) {
+            return this.#bindings.findIndex(a => a.content === shortcut) != -1;
+        }
+
+        /**
+         * Returns whether or not this function is attached to a shortcut or not
+         * @param {function} callback 
+         * @returns {boolean}
+         */
+        attached(callback) {
+            return this.#bindings.findIndex(a => a.callback === callback) != -1;
+        }
+
+        /**
+         * Get a shortcut with it's callback if found
+         * @param {string} shortcut 
+         * @param {function} callback 
+         * @returns
+         */
+        find(shortcut, callback) {
+            let _this = this;
+            let index = this.#bindings.findIndex(a => a.content === shortcut && a.callback === callback);
+
+            return {
+                index,
+                get: () => index != -1 ? JSON.parse(JSON.stringify(_this.#bindings[index])) : null,
+                unbind: () => index != -1 ? _this.unbind(shortcut, callback) : null
+            }
+        }
+
+    }
+
+    let qway = new QwayClass();
+
+    return qway;
 
 }));
 //# sourceMappingURL=qway.umd.js.map
