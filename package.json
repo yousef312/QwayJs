@@ -1,6 +1,6 @@
 {
   "name": "qway",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "create and handle the shortcuts for your website, very easily and effectively",
   "main": "./src/qway.js",
   "module": "dist/qway.esm.js",
