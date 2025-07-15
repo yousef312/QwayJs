@@ -1,5 +1,11 @@
 # ChangeLog
 
+## [3.1.0] - 2025/07/13
+
+### Fixed
+
+ - the library effects the inputs in the documents Fixed.
+
 ## [3.0.0] - 2025/07/13
 
 ### Added

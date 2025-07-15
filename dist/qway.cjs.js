@@ -283,13 +283,13 @@ class ShortcutBinding extends Binding {
     keyDown(e) {
         const code = e.code,
             _this = this;
-        e.preventDefault();
         this.#progress.forEach((prg, j) => {
             prg.add(code);
 
             const pressed = Array.from(prg);
             const isMatch = _this.sequences[j].every((code, i) => Array.isArray(code) ? code.includes(pressed[i]) : pressed[i] === code);
             if (isMatch) {
+                e.preventDefault();
                 _this.callback();
                 return true;
             }
@@ -458,8 +458,6 @@ class QBuilder {
      */
     receive(evName, ev) {
         if (evName == "keydown" && this.#progress.size >= this.len) return;
-
-        ev.preventDefault();
 
         switch (evName) {
             case "keydown":
