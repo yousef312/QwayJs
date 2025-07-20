@@ -1,5 +1,25 @@
 # ChangeLog
 
+## [3.2.0] - 2025/07/20
+
+### Fixed
+
+ - library shows an error when binding single key! Fixed
+ - combo bindings not accepting repeatetive keys(Like two O in C O M B O) Fixed
+ - timed keys not working! Fixed
+ - bindings interrupt inputs and textarea working. Fixed
+ - when disactivating qway, blur window then focus back, the qway is activated! Fixed 
+
+### Added
+
+ - `progress` binding object now have `type` attribute
+ - new `defineTimeoutFunc` function that allows you to use your custom settimeout functions, with `getTimeoutFunc` to get them.
+ - `.activate` and `.disativate` now may accept specific type of bindings to activate/disativate.
+
+### Changed
+
+ - `progress` event now get executed everytime even when binding is executed, also the order is adjusted, action => progressEvent => finishEvent
+
 ## [3.1.0] - 2025/07/13
 
 ### Fixed

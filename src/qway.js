@@ -248,21 +248,70 @@ class QBuildEvent extends CustomEvent {
  * Single binding/shortcut item with it's own functionalities
  */
 class Binding {
+    /**
+     * Binding type
+     */
+    #type = "";
 
     /**
+     * @param {QwayClass} qway 
      * @param {string} content 
      * @param {function} callback 
-     * @param {{ delay: number, fragile: boolean }} options 
+     * @param {{ delay: number, fragile: boolean, type: "combo" | "shortcut" | "timed" }} options 
      */
-    constructor(content, callback, options) {
+    constructor(qway, content, callback, options) {
+        this.q = qway;
+        /**
+         * Raw binding content
+         * @type {String}
+         */
         this.content = content;
+
+        /**
+         * Binding callback
+         * @type {Function}
+         */
         this.callback = callback;
+
+        /**
+         * Different binding options
+         */
         this.options = options || {};
+
+        /**
+         * Binding on going progress
+         * @type {Set}
+         */
         this.progress = new Set();
 
+        this.#type = options.type;
+
         this.events = {};
+
         this.onprogress = noop;
         this.onfinish = noop;
+
+        /**
+         * Keys sequence
+         * @type {Array<string>} 
+         */
+        this.sequence = [];
+    }
+
+    /**
+     * Type of current binding
+     * @type {"combo" | "shortcut" | "timed"}
+     */
+    get type() {
+        return this.#type;
+    }
+
+    /**
+     * Length of the shortcut
+     * @type {number}
+     */
+    get length() {
+        return this.sequence && this.sequence.length ? this.sequence.length : 1;
     }
 
     /**
@@ -276,8 +325,9 @@ class Binding {
                 this.keyUp(ev);
                 break;
             case "keydown":
-                if (this.keyDown(ev)) this.onfinish(this);
-                else this.onprogress(this);
+                let executed = this.keyDown(ev);
+                this.onprogress(this);
+                if (executed) this.onfinish(this);
                 break;
         }
     }
@@ -298,56 +348,49 @@ class ShortcutBinding extends Binding {
 
     /**
      * List of progresses
-     * @type {Array<Set>}
+     * @type {Set}
      */
-    #progress = [];
+    #progress = new Set();
 
     /**
+     * @param {QwayClass} qway 
      * @param {Array<string>} content 
      * @param {function} callback 
      * @param {*} options 
      */
-    constructor(content, callback, options) {
+    constructor(qway, content, callback, options) {
         // make sure correct format
-        content = mergeUnique(Array.isArray(content) ? content : [content]);
-        let seqs = [];
-        content.forEach(short => {
-            const sequence = short.toLowerCase().split('+').map(translateKey);
-            if (sequence.includes(null)) throw new Error(`[QwayJS] Incorrect shortcut format "${short}"`);
-            seqs.push(sequence);
-        })
+        const sequence = content.toLowerCase().split('+').map(translateKey);
+        if (sequence.includes(null)) throw new Error(`[QwayJS] Incorrect shortcut format "${short}"`);
+
         // Initiate father class
-        super(content, callback, options);
-        this.sequences = seqs;
-        this.#progress = new Array(seqs.length).fill(new Set());
+        options = options || {};
+        options.type = "shortcut";
+        super(qway, content, callback, options);
+        this.sequence = sequence;
     }
 
     keyUp(e) {
         const code = e.code;
-        this.#progress.forEach(prg => {
-            prg.delete(code);
-        })
+        this.#progress.delete(code);
     }
 
     keyDown(e) {
         const code = e.code,
             _this = this;
-        this.#progress.forEach((prg, j) => {
-            prg.add(code);
+        this.#progress.add(code);
 
-            const pressed = Array.from(prg);
-            const isMatch = _this.sequences[j].every((code, i) => Array.isArray(code) ? code.includes(pressed[i]) : pressed[i] === code);
-            if (isMatch) {
-                e.preventDefault();
-                _this.callback();
-                return true;
-            }
-
-        })
+        const pressed = Array.from(this.#progress);
+        const isMatch = _this.sequence.every((code, i) => Array.isArray(code) ? code.includes(pressed[i]) : pressed[i] === code);
+        if (isMatch) {
+            e.preventDefault();
+            _this.callback();
+            return true;
+        }
     }
 
     reset() {
-        this.#progress.forEach(prg => prg.clear())
+        this.#progress.clear();
     }
 }
 
@@ -359,20 +402,23 @@ class ShortcutBinding extends Binding {
 class ComboBinding extends Binding {
 
     /**
+     * @param {QwayClass} qway 
      * @param {string} content 
      * @param {function} callback 
      * @param {*} options 
      */
-    constructor(content, callback, options) {
-        options = options || { delay: 300 }
+    constructor(qway, content, callback, options) {
         content = content.toLowerCase();
         // make sure correct format
         const sequence = content.split(' ').map(translateCombo);
         if (sequence.includes(null)) throw new Error(`[QwayJS] Incorrect combo string format "${content}"`);
         // Initiate father class
-        super(content, callback, options);
+        options = options || { delay: 300 }
+        options.type = "combo";
+        super(qway, content, callback, options);
         this.sequence = sequence;
         this.timeout = null;
+        this.progress = []; // for combo keys, we just use a simple array
     }
 
     keyUp(e) {
@@ -381,15 +427,14 @@ class ComboBinding extends Binding {
 
     keyDown(e) {
         let _this = this;
-        this.progress.add(e.key.toLowerCase());
-        if (this.timeout) clearTimeout(this.timeout);
+        this.progress.push(e.key.toLowerCase());
+        if (this.timeout) this.q.getTimeoutFunc().clearTimeout(this.timeout);
 
-        const pressed = Array.from(this.progress);
-        const isMatch = this.sequence.every((code, i) => code === "*" || (Array.isArray(code) ? code.includes(pressed[i]) : pressed[i] === code));
+        const isMatch = this.sequence.every((code, i) => code === "*" || (Array.isArray(code) ? code.includes(this.progress[i]) : this.progress[i] === code));
 
         // COMBO are time based shortcuts
-        this.timeout = setTimeout(function () {
-            _this.progress.clear();
+        this.timeout = this.q.getTimeoutFunc().setTimeout(function () {
+            _this.progress = [];
         }, this.options?.delay || 300);
 
         if (isMatch) {
@@ -400,8 +445,8 @@ class ComboBinding extends Binding {
     }
 
     reset() {
-        if (this.timeout) clearTimeout(this.timeout);
-        this.progress.clear();
+        if (this.timeout) this.q.getTimeoutFunc().clearTimeout(this.timeout);
+        this.progress = [];
     }
 }
 
@@ -412,28 +457,35 @@ class ComboBinding extends Binding {
 class TimedKey extends Binding {
 
     /**
+     * Used with timeouts calls
+     */
+    #timeout = null;
+
+    /**
+     * @param {QwayClass} qway 
      * @param {string} content 
      * @param {function} callback 
      * @param {*} options 
      */
-    constructor(content, callback, options) {
+    constructor(qway, content, callback, options) {
         content = content.toLowerCase();
         // make sure correct format
         const [rawKey, dur] = content.split('=>');
         let key = translateKey(rawKey);
         if (key === null) throw new Error(`[QwayJS] Incorrect timedkey "${content}"`);
         // Initiate father class
-        super(content, callback, options);
+        options = options || { delay: 300 }
+        options.type = "timed";
+        super(qway, content, callback, options);
 
-        this.key = key;
-        this.timeout = null;
+        this.sequence = [key];
         this.dur = parseFloat(dur || "1000");
     }
 
     keyUp(e) {
         // do nothing in here as combo are about time 
-        if (this.options?.fragile === true || this.key === e.code.toLowerCase()) {
-            clearTimeout(this.timeout);
+        if (this.options?.fragile === true || this.sequence[0] === e.code) {
+            this.q.getTimeoutFunc().clearTimeout(this.timeout);
             this.timeout = null;
         }
     }
@@ -441,23 +493,24 @@ class TimedKey extends Binding {
     keyDown(e) {
         let _this = this;
 
-        if (this.key === e.code.toLowerCase() && !this.timeout) {
+        if (this.sequence[0] === e.code && !this.timeout) {
+            this.progress.add(e.code);
             e.preventDefault();
 
             // COMBO are time based shortcuts
-            this.timeout = setTimeout(function () {
+            this.timeout = this.q.getTimeoutFunc().setTimeout(function () {
                 _this.callback();
                 _this.timeout = null;
             }, this.dur);
 
         } else if (this.options?.fragile === true) {
-            clearTimeout(this.timeout);
+            this.q.getTimeoutFunc().clearTimeout(this.timeout);
             this.timeout = null;
         }
     }
 
     reset() {
-        if (this.timeout) clearTimeout(this.timeout);
+        if (this.timeout) this.q.getTimeoutFunc().clearTimeout(this.timeout);
     }
 }
 
@@ -577,7 +630,42 @@ class QwayClass {
     #keys = {};
 
     #events = {};
+
+    /**
+     * Flag determine whether or not bindings activated or not
+     * @type {boolean}
+     */
     #activated = true;
+
+    /**
+     * Flag determine whether shortcut bindings are activated or not
+     * @type {boolean}
+     */
+    #shortcutActivated = true;
+
+    /**
+     * Flag determine whether combo bindings are activated or not
+     * @type {boolean}
+     */
+    #comboActivated = true;
+
+    /**
+     * Flag determine whether timed bindings are activated or not
+     * @type {boolean}
+     */
+    #timedActivated = true;
+
+    /**
+     * Holds the old activation state
+     * @type {boolean}
+     */
+    #oldActivationState = true;
+
+    /**
+     * Timeout functions, set and clear used in timed and combo bindings
+     * you can define your custom timeout calls using `defineTimeoutFunc`
+     */
+    #timeout_calls = [setTimeout.bind(window), clearTimeout.bind(window)];
 
     constructor() {
 
@@ -591,9 +679,13 @@ class QwayClass {
         window.addEventListener('keydown', function (e) {
             if (_this.builder.on)
                 _this.builder.receive('keydown', e);
-            if (!_this.#activated) return;
+            if (!_this.#activated || ["INPUT", "TEXTAREA"].includes(this.document.activeElement.tagName)) return;
             _this.#bindings.forEach(bnd => {
-                bnd.onEvent("keydown", e);
+                if(
+                    (bnd.type == "combo" && _this.#comboActivated) ||
+                    (bnd.type == "shortcut" && _this.#shortcutActivated) ||
+                    (bnd.type == "timed" && _this.#timedActivated)
+                ) bnd.onEvent("keydown", e);
             })
             _this.#keys[e.code] = true;
         })
@@ -601,7 +693,7 @@ class QwayClass {
         window.addEventListener('keyup', function (e) {
             if (_this.builder.on)
                 _this.builder.receive('keyup', e);
-            if (!_this.#activated) return;
+            if (!_this.#activated || ["INPUT", "TEXTAREA"].includes(this.document.activeElement.tagName)) return;
             _this.#bindings.forEach(bnd => {
                 bnd.onEvent("keyup", e);
             })
@@ -626,24 +718,31 @@ class QwayClass {
 
         if (this.reserved(shortcut)) return false;
 
-        let bnd;
-        if (shortcut.includes('+') || (Array.isArray(shortcut)))
-            bnd = new ShortcutBinding(shortcut, callback);
+        let bnds = [];
+        if (keyMap.hasOwnProperty(shortcut) || shortcut.includes('+') || (Array.isArray(shortcut)))
+            (Array.isArray(shortcut) ? shortcut : [shortcut]).forEach(short => {
+                bnds.push(new ShortcutBinding(this, short, callback));
+            })
         else if (shortcut.includes(' '))
-            bnd = new ComboBinding(shortcut, callback);
+            bnds.push(new ComboBinding(this, shortcut, callback));
         else if (shortcut.includes('=>'))
-            bnd = new TimedKey(shortcut, callback);
+            bnds.push(new TimedKey(this, shortcut, callback));
 
-        if (!bnd) throw new Error(`[QwayJS] Could bind the new shortcut!`);
+        if (bnds.includes(null)) throw new Error(`[QwayJS] Could not bind the new shortcut!`);
 
-        bnd.onprogress = function (e) {
-            _this.trigger('progress', e, new BindingEvent('progress', { binding: e, qway: _this }));
-        }
+        bnds.forEach(bnd => {
 
-        bnd.onfinish = function (e) {
-            _this.trigger('finish', e, new BindingEvent('finish', { binding: e, qway: _this }));
-        }
-        this.#bindings.push(bnd);
+            // attaching system events
+            bnd.onprogress = function (binding) {
+                _this.trigger('progress', binding, new BindingEvent('progress', { binding, qway: _this }));
+            }
+
+            bnd.onfinish = function (binding) {
+                _this.trigger('finish', binding, new BindingEvent('finish', { binding, qway: _this }));
+            }
+
+            _this.#bindings.push(bnd);
+        })
         return true;
     }
 
@@ -737,6 +836,7 @@ class QwayClass {
      * @param {function} cb the callback to be attached
      */
     getFromUser(len, cb) {
+        this.#oldActivationState = this.#activated;
         this.#activated = false;
         this.builder.start(len, cb);
 
@@ -755,7 +855,7 @@ class QwayClass {
             }
         }
         this.builder.approve();
-        this.#activated = true;
+        this.#activated = this.#oldActivationState;
     }
 
     /**
@@ -763,22 +863,55 @@ class QwayClass {
      */
     declineFromUser() {
         this.builder.abort();
-        this.#activated = true;
+        this.#activated = this.#oldActivationState;
     }
 
     /**
-     * Activate the Qwaay shortcuts
+     * Activate the Qway bindings, 
+     * @param {"combo" | "shortcut" | "timed"} [type] optionally effect only certain type of shortcuts
      */
-    activate() {
-        this.#activated = true;
+    activate(type) {
+        switch (type) {
+            case "combo":
+                this.#comboActivated = true;
+                break;
+            case "shortcut":
+                this.#shortcutActivated = true;
+                break;
+            case "timed":
+                this.#timedActivated = true;
+                break;
+            default:
+                this.#activated = true;
+        }
+        this.#oldActivationState = true;
     }
 
     /**
      * Disactivate the Qwaay shortcuts
+     * @param {"combo" | "shortcut" | "timed"} [type] optionally effect only certain type of shortcuts
      */
-    disactivate() {
-        this.#activated = false;
-        this.#bindings.forEach(bnd => bnd.reset());
+    disactivate(type) {
+        switch (type) {
+            case "combo":
+                this.#comboActivated = false;
+                break;
+            case "shortcut":
+                this.#shortcutActivated = false;
+                break;
+            case "timed":
+                this.#timedActivated = false;
+                break;
+            default:
+                this.#activated = false;
+                break;
+        }
+
+        this.#oldActivationState = false;
+
+        this.#bindings.forEach(bnd => {
+            if (!type || bnd.type === type) bnd.reset(); //only reset targeted 
+        });
     }
 
     /**
@@ -816,6 +949,29 @@ class QwayClass {
         }
     }
 
+
+    /**
+     * Define your own timeout function, this is most useful when using your custom runtime environment
+     * like in a game engine, a rendering engine.. 
+     * @param {(handler: Function, timeout: number)=>} mySetTimeout 
+     * @param {(timeoutId: number)=>void} myClearTimeout 
+     */
+    defineTimeoutFunc(mySetTimeout, myClearTimeout) {
+
+        if (typeof mySetTimeout != "function" || typeof myClearTimeout != "function")
+            throw new Error(`[QwayJS] both function arguments are required when defining your custom timeout system!`);
+
+        this.#timeout_calls[0] = mySetTimeout;
+        this.#timeout_calls[1] = myClearTimeout;
+    }
+
+    /**
+     * Returns the used timeout functions
+     * @returns {{ setTimeout: (handler: function, timeout: number) => number, clearTimeout: (timerId: number) => void}}
+     */
+    getTimeoutFunc() {
+        return { setTimeout: this.#timeout_calls[0], clearTimeout: this.#timeout_calls[1] };
+    }
 }
 
 let qway = new QwayClass();
